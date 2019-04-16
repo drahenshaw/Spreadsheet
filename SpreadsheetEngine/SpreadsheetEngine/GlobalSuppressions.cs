@@ -1,0 +1,14 @@
+﻿// <copyright file="GlobalSuppressions.cs" company="David Henshaw 11215398">
+// Copyright (c) David Henshaw 11215398. All rights reserved.
+// </copyright>
+
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1401:Fields must be private", Justification = "<Using Inheritance in this Project - Also stated in the Requirements>", Scope = "member", Target = "~F:CptS321.SpreadsheetCell.cellValue")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.SpacingRules", "SA1025:Code must not contain multiple whitespace in a row", Justification = "<Additional Whitespace lines up code making it easier to read>", Scope = "type", Target = "~T:CptS321.SpreadsheetCell")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1401:Fields must be private", Justification = "<Using Inheritance>", Scope = "member", Target = "~F:CptS321.SpreadsheetCell.rowIndex")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.ReadabilityRules", "SA1130:Use lambda syntax", Justification = "<Delegate Used to Avoid null checks>", Scope = "member", Target = "~E:CptS321.SpreadsheetCell.PropertyChanged")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1401:Fields must be private", Justification = "<Inheritance>", Scope = "member", Target = "~F:CptS321.SpreadsheetCell.cellText")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1401:Fields must be private", Justification = "<Inheritance>", Scope = "member", Target = "~F:CptS321.SpreadsheetCell.columnIndex")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.LayoutRules", "SA1501:Statement must not be on a single line", Justification = "<Readability>", Scope = "member", Target = "~P:CptS321.SpreadsheetCell.CellText")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.LayoutRules", "SA1501:Statement must not be on a single line", Justification = "<Readability>", Scope = "member", Target = "~P:CptS321.SpreadsheetCell.CellValue")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1201:Elements must appear in the correct order", Justification = "<Events near fields makes sense for the scope of this project>", Scope = "member", Target = "~M:CptS321.SpreadsheetCell.#ctor(System.UInt32,System.UInt32)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1204:Static elements must appear before instance elements", Justification = "Method order does not matter", Scope = "member", Target = "~M:SpreadsheetEngine.ExpressionTree.VerifyParentheses(System.String)~System.Boolean")]
