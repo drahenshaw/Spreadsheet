@@ -75,7 +75,7 @@ namespace CptS321
                     SpreadsheetCell cell = new InstanceSpreadsheetCell(i, j);
 
                     // Subscribe each Cell to PropertyChanges
-                    //cell.PropertyChanged += this.UpdateSpreadsheetCell;
+                    cell.PropertyChanged += this.UpdateSpreadsheetCell;
                     cell.PropertyChanged += this.EvaluateSpreadsheetCell;
 
                     // Add Each Cell to the Spreadsheet
@@ -157,35 +157,30 @@ namespace CptS321
                 if (string.IsNullOrEmpty(currentCell.CellText))
                 {
                     currentCell.CellValue = string.Empty;
-                    this.OnPropertyChanged("CellText");
-                    if (this.CellPropertyChanged != null)
-                    {
-                        this.CellPropertyChanged(sender, new PropertyChangedEventArgs("CellChanged"));
-                    }
-
+                    this.OnPropertyChanged(sender, "CellChanged");
                 }
                 else if (currentCell.CellText[0] != '=')
                 {
                     currentCell.CellValue = currentCell.CellText;
-                    this.OnPropertyChanged("CellText");
-                    if (this.CellPropertyChanged != null)
-                    {
-                        this.CellPropertyChanged(sender, new PropertyChangedEventArgs("CellChanged"));
-                    }
-
-                    
+                    this.OnPropertyChanged(sender, "CellChanged");
                 }
                 else
                 {
                     SpreadsheetEngine.ExpressionTree expressionTree = new SpreadsheetEngine.ExpressionTree(currentCell.CellText.Substring(1));
-                    expressionTree.Evaluate();
+                    //expressionTree.Evaluate();
                     string[] variableNames = expressionTree.GetVariableNames();
 
                     foreach (string variable in variableNames)
                     {
-                        SpreadsheetCell variableCell = this.GetCell(Convert.ToUInt32(variable.Substring(1)) - 1, (uint)variable[0] - 'A');
+                        SpreadsheetCell variableCell = this.GetCell(variable);
 
-                        if (variableCell.CellValue != null && !variableCell.CellValue.Contains(" "))
+                        if (!CheckValidReference(currentCell, variableCell) || CheckSelfReference(currentCell, variableCell))
+                        {
+                            return;
+                        }
+
+
+                        if (variableCell.CellValue != string.Empty && !variableCell.CellValue.Contains(" "))
                         {
                             expressionTree.SetVariable(variable, Convert.ToDouble(variableCell.CellValue));
                         }
@@ -194,17 +189,60 @@ namespace CptS321
                             expressionTree.SetVariable(variable, 0.0);
                         }
 
+
+                        visitedCells.Add(variableCell);
+
                         variableCell.DependencyChanged += currentCell.OnDependencyChanged; 
                     }
 
                     currentCell.CellValue = expressionTree.Evaluate().ToString();
-                    this.OnPropertyChanged("CellValue");
-                    if (this.CellPropertyChanged != null)
+                    this.OnPropertyChanged(sender, "CellChanged");
+
+
+                    if (CheckCircularReference(currentCell))
                     {
-                        this.CellPropertyChanged(sender, new PropertyChangedEventArgs("CellChanged"));
-                    }
+                        return;
+                    }                  
+                   
                 }
+
+                //visitedCells.Clear();
             }
+        }
+
+
+        private bool CheckValidReference(SpreadsheetCell sender, SpreadsheetCell cell)
+        {
+            if (cell == null)
+            {
+                sender.CellValue = "!(bad reference)";
+                this.OnPropertyChanged(sender, "CellChanged");
+                return false;
+            }
+            return true;
+        }
+
+        private bool CheckSelfReference(SpreadsheetCell sender, SpreadsheetCell cell)
+        {
+            if (cell == sender)
+            {
+                sender.CellValue = "!(self reference)";
+                this.OnPropertyChanged(sender, "CellChanged");
+                return true;
+            }
+            return false;
+        }
+
+        private bool CheckCircularReference(SpreadsheetCell cell)
+        {
+            if (this.visitedCells.Add(cell) == false)
+            {
+                cell.CellValue = "!(circular reference)";
+                //this.OnPropertyChanged(cell, "CellChanged");
+                return true;
+
+            }
+            return false;
         }
 
         /// <summary>
@@ -215,17 +253,17 @@ namespace CptS321
         private void UpdateSpreadsheetCell(object sender, PropertyChangedEventArgs e)
         {
             // Only Update if Cell Property was Changed
-            if (e.PropertyName == "CellText" || e.PropertyName == "CellValue")
+            //if (e.PropertyName == "CellText" || e.PropertyName == "CellValue")
             {
                 // Cast Sender as a Spreadsheet Cell to Change
-                SpreadsheetCell cellChanged = sender as SpreadsheetCell;
+                //SpreadsheetCell cellChanged = sender as SpreadsheetCell;
 
                 //this.UpdateSpreadsheetCell(cellChanged);
-                this.OnPropertyChanged("Text");
+                //this.OnPropertyChanged("Text");
                 
                 
             }
-            else if (e.PropertyName == "BGColor")
+            if (e.PropertyName == "BGColor")
             {
                 SpreadsheetCell cellChanged = sender as SpreadsheetCell;
                 CellPropertyChanged(cellChanged, new PropertyChangedEventArgs("BGColorChanged"));
@@ -519,28 +557,6 @@ namespace CptS321
                 return undoCommands.Peek().ElementAt(0).CommandName();
             }
 
-            //if (this.undoCommands.Any())
-            //{
-            //    // Peek top of undo stack for most recent undo commands
-            //    var commandList = this.undoCommands.Peek();
-
-            //    // Try to cast the ICommand as a RestoreBGColorCommand
-            //    SpreadsheetEngine.RestoreBGColorCommand restoreBGColorCommand = commandList[0] as SpreadsheetEngine.RestoreBGColorCommand;
-            //    if (restoreBGColorCommand != null)
-            //    {
-            //        // If the cast was successful, return the command name
-            //        return restoreBGColorCommand.GetType().GetTypeInfo().Name;
-            //    }
-
-            //    // Try to cast the ICommand as a RestoreTextCommand
-            //    SpreadsheetEngine.RestoreTextCommand restoreTextCommand = commandList[0] as SpreadsheetEngine.RestoreTextCommand;
-            //    if (restoreTextCommand != null)
-            //    {
-            //        // If the cast was successful, return the command name
-            //        return restoreTextCommand.GetType().GetTypeInfo().Name;
-            //    }
-            //}
-
             // Stack was empty - return empty string
             return string.Empty;
         }
@@ -674,9 +690,9 @@ namespace CptS321
             return false;
         }
 
-        public void OnPropertyChanged(string name)
+        public void OnPropertyChanged(object sender, string name)
         {
-            this.CellPropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            this.CellPropertyChanged?.Invoke(sender, new PropertyChangedEventArgs(name));
         }
     }
 }

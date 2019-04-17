@@ -35,7 +35,7 @@ namespace SpreadsheetEngine
         /// </summary>
         public void Execute()
         {
-            spreadsheetCell.BGColor = prevBGColor;            
+            spreadsheetCell.BGColor = prevBGColor;  
         }
 
         /// <summary>
