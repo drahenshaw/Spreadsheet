@@ -154,7 +154,17 @@ namespace CptS321
         {
             if (sender is SpreadsheetCell currentCell && currentCell != null)
             {
-                if (currentCell.CellText[0] != '=')
+                if (string.IsNullOrEmpty(currentCell.CellText))
+                {
+                    currentCell.CellValue = string.Empty;
+                    this.OnPropertyChanged("CellText");
+                    if (this.CellPropertyChanged != null)
+                    {
+                        this.CellPropertyChanged(sender, new PropertyChangedEventArgs("CellChanged"));
+                    }
+
+                }
+                else if (currentCell.CellText[0] != '=')
                 {
                     currentCell.CellValue = currentCell.CellText;
                     this.OnPropertyChanged("CellText");
