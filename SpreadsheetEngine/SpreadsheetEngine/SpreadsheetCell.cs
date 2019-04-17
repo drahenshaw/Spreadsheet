@@ -142,7 +142,7 @@ namespace CptS321
                 this.cellValue = value;
 
                 // Raise Property Changed Event
-                this.OnPropertyChanged("CellValue");
+                // this.OnPropertyChanged("CellValue");
             }
         }
 

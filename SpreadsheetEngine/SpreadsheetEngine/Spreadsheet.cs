@@ -75,7 +75,8 @@ namespace CptS321
                     SpreadsheetCell cell = new InstanceSpreadsheetCell(i, j);
 
                     // Subscribe each Cell to PropertyChanges
-                    cell.PropertyChanged += this.UpdateSpreadsheetCell;
+                    //cell.PropertyChanged += this.UpdateSpreadsheetCell;
+                    cell.PropertyChanged += this.EvaluateSpreadsheetCell;
 
                     // Add Each Cell to the Spreadsheet
                     this.spreadsheet[i, j] = cell;
@@ -147,6 +148,53 @@ namespace CptS321
             }
 
             return null;
+        }
+
+        private void EvaluateSpreadsheetCell(object sender, PropertyChangedEventArgs e)
+        {
+            if (sender is SpreadsheetCell currentCell && currentCell != null)
+            {
+                if (currentCell.CellText[0] != '=')
+                {
+                    currentCell.CellValue = currentCell.CellText;
+                    this.OnPropertyChanged("CellText");
+                    if (this.CellPropertyChanged != null)
+                    {
+                        this.CellPropertyChanged(sender, new PropertyChangedEventArgs("CellChanged"));
+                    }
+
+                    
+                }
+                else
+                {
+                    SpreadsheetEngine.ExpressionTree expressionTree = new SpreadsheetEngine.ExpressionTree(currentCell.CellText.Substring(1));
+                    expressionTree.Evaluate();
+                    string[] variableNames = expressionTree.GetVariableNames();
+
+                    foreach (string variable in variableNames)
+                    {
+                        SpreadsheetCell variableCell = this.GetCell(Convert.ToUInt32(variable.Substring(1)) - 1, (uint)variable[0] - 'A');
+
+                        if (variableCell.CellValue != null && !variableCell.CellValue.Contains(" "))
+                        {
+                            expressionTree.SetVariable(variable, Convert.ToDouble(variableCell.CellValue));
+                        }
+                        else
+                        {
+                            expressionTree.SetVariable(variable, 0.0);
+                        }
+
+                        variableCell.DependencyChanged += currentCell.OnDependencyChanged; 
+                    }
+
+                    currentCell.CellValue = expressionTree.Evaluate().ToString();
+                    this.OnPropertyChanged("CellValue");
+                    if (this.CellPropertyChanged != null)
+                    {
+                        this.CellPropertyChanged(sender, new PropertyChangedEventArgs("CellChanged"));
+                    }
+                }
+            }
         }
 
         /// <summary>
