@@ -37,6 +37,11 @@ namespace Spreadsheet_David_Henshaw
             this.dataGridView.CellEndEdit += this.dataGridView_CellEndEdit;
         }
 
+        /// <summary>
+        /// Fires when Form is Launched
+        /// </summary>
+        /// <param name="sender">Main</param>
+        /// <param name="e">Event arguments</param>
         private void Form1_Load(object sender, EventArgs e)
         {
             // Clear Columns From Designer
@@ -65,14 +70,21 @@ namespace Spreadsheet_David_Henshaw
             }
         }
 
+        /// <summary>
+        /// Fires when Spreadsheet Cells are Changed
+        /// </summary>
+        /// <param name="sender">Spreadsheet Class</param>
+        /// <param name="e">Event arguments</param>
         private void UpdateFormUI(object sender, PropertyChangedEventArgs e)
         {
+            // Update the Cell Values at UI Level
             if (e.PropertyName == "CellChanged")
             {
                 CptS321.SpreadsheetCell cellChanged = sender as CptS321.SpreadsheetCell;
 
                 this.dataGridView.Rows[(int)cellChanged.RowIndex].Cells[(int)cellChanged.ColumnIndex].Value = cellChanged.CellValue;
             }
+            // Update the Cell Colors at UI Level
             else if (e.PropertyName == "BGColorChanged")
             {
                 CptS321.SpreadsheetCell cellChanged = sender as CptS321.SpreadsheetCell;
@@ -90,6 +102,11 @@ namespace Spreadsheet_David_Henshaw
             }
         }
 
+        /// <summary>
+        /// Fires when User Starts Editing Cells in Data Grid
+        /// </summary>
+        /// <param name="sender">UI Data Grid View</param>
+        /// <param name="e">Event arguments</param>
         private void dataGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
             uint cellRow = (uint)e.RowIndex;
@@ -103,41 +120,64 @@ namespace Spreadsheet_David_Henshaw
             }
         }
 
+        /// <summary>
+        /// Fires when Cell Editing Finished
+        /// </summary>
+        /// <param name="sender">UI Data Grid</param>
+        /// <param name="e">Event arguments</param>
         private void dataGridView_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
+            // Get Cell Index
             uint cellRow = (uint)e.RowIndex;
             uint cellColumn = (uint)e.ColumnIndex;
 
+            // Get Cell Instance
             CptS321.SpreadsheetCell cellToUpdate = this.spreadsheet.GetCell(cellRow, cellColumn);
             string oldText = cellToUpdate.CellText;
 
+            // If Valid Cell
             if (cellToUpdate != null)
             {
                 try
                 {
+                    // Update Cell Text at Index with new Value
                     cellToUpdate.CellText = this.dataGridView.Rows[(int)cellRow].Cells[(int)cellColumn].Value.ToString();
-
                 }
                 catch (NullReferenceException)
                 {
+                    // Catch Empty Values and set as Empty
                     cellToUpdate.CellText = string.Empty;
                 }
 
+                // Update Grid View
                 if (cellToUpdate.CellText != string.Empty)
                 {
                     this.dataGridView.Rows[(int)cellRow].Cells[(int)cellColumn].Value.ToString();
                 }
-                //this.dataGridView.Rows[(int)cellRow].Cells[(int)cellColumn].Value.ToString();
+
+                // Create Undo Command for Text Change and add to List
                 List<SpreadsheetEngine.ICommand> textUndoCommand = new List<SpreadsheetEngine.ICommand>();
                 textUndoCommand.Add(new SpreadsheetEngine.RestoreTextCommand(cellToUpdate, oldText, cellToUpdate.CellText));
+
+                // Add the Undo Command List to the Undo Stack
                 this.spreadsheet.AddUndo(textUndoCommand);
+
+                // Enable the Undo Button for the Created Command
                 this.undoToolStripMenuItem.Enabled = true;
+                
+                // Clear any Pending Redo's Since a new Command was Pushed
                 this.spreadsheet.ClearRedoStack();
             }
 
+            // Update Menu Text
             UpdateToolStripMenu();
         }
 
+        /// <summary>
+        /// Fires when Cell Demo Button Clicked
+        /// </summary>
+        /// <param name="sender">Demo Button</param>
+        /// <param name="e">Event arguments</param>
         private void demoButton_Click(object sender, EventArgs e)
         {
             Random RNGenerator = new Random();
@@ -158,6 +198,11 @@ namespace Spreadsheet_David_Henshaw
             }
         }
 
+        /// <summary>
+        /// Fires when Background Color Clicked
+        /// </summary>
+        /// <param name="sender">UI Color Menu</param>
+        /// <param name="e">Event arguments</param>
         private void BackgroundColorToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // Open Color Dialog box for user to select a new color
@@ -198,27 +243,36 @@ namespace Spreadsheet_David_Henshaw
             UpdateToolStripMenu();
         }
 
-
+        /// <summary>
+        /// Fires when Undo is Clicked
+        /// </summary>
+        /// <param name="sender">Undo Button</param>
+        /// <param name="e">Option arguments</param>
         private void UndoToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            // Execute the Undo Command
             bool stackBecameEmpty = this.spreadsheet.Undo();
             
+            // If the stack became emtpy
             if (stackBecameEmpty)
             {
+                // Disable Undo Button
                 this.undoToolStripMenuItem.Enabled = false;
             }
             else
             {
+                // Enable Undo Button
                 this.undoToolStripMenuItem.Enabled = true;
             }
 
+            // Also Check Redo Button and Enable
             if (!spreadsheet.RedoStackIsEmpty())
             {
                 this.redoToolStripMenuItem.Enabled = true;
             }
 
+            // Update Menu Text
             UpdateToolStripMenu();
-
         }
 
         /// <summary>
