@@ -36,11 +36,6 @@ namespace CptS321
         private Stack<List<SpreadsheetEngine.ICommand>> undoCommands = new Stack<List<SpreadsheetEngine.ICommand>>();
         private Stack<List<SpreadsheetEngine.ICommand>> redoCommands = new Stack<List<SpreadsheetEngine.ICommand>>();
 
-        private HashSet<SpreadsheetCell> visitedCells = new HashSet<SpreadsheetCell>();
-        private HashSet<string> circularVariables = new HashSet<string>();
-
-        private bool circular = false;
-
         /// <summary>
         /// Set the Delegate for Handling Events
         /// </summary>
@@ -77,8 +72,7 @@ namespace CptS321
                     SpreadsheetCell cell = new InstanceSpreadsheetCell(i, j);
 
                     // Subscribe each Cell to PropertyChanges
-                    cell.PropertyChanged += this.UpdateSpreadsheetCell;
-                    cell.PropertyChanged += this.EvaluateSpreadsheetCell;
+                    cell.PropertyChanged += this.OnPropertyChanged;
 
                     // Add Each Cell to the Spreadsheet
                     this.spreadsheet[i, j] = cell;
@@ -153,42 +147,52 @@ namespace CptS321
         }
 
 
+        /// <summary>
+        /// Called when 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-
+            if (e.PropertyName == "CellText")
+            {
+                RemoveCellDependency(sender as SpreadsheetCell);
+                EvaluateSpreadsheetCell(sender as SpreadsheetCell);
+            }
+            else if (e.PropertyName == "BGColor")
+            {
+                SpreadsheetCell cellChanged = sender as SpreadsheetCell;
+                CellPropertyChanged(cellChanged, new PropertyChangedEventArgs("BGColorChanged"));
+            }
         }
 
-
-
-
-        private void EvaluateSpreadsheetCell(object sender, PropertyChangedEventArgs e)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cell"></param>
+        private void EvaluateSpreadsheetCell(SpreadsheetCell cell)
         {
-            if (sender is SpreadsheetCell currentCell && currentCell != null)
+            if (cell is SpreadsheetCell currentCell && currentCell != null)
             {
                 // Empty Cell
                 if (string.IsNullOrEmpty(currentCell.CellText))
                 {
                     currentCell.CellValue = string.Empty;
-                    this.OnPropertyChanged(sender, "CellChanged");
+                    this.OnPropertyChanged(cell, "CellChanged");
                 }
 
                 // Non-Formula
                 else if (currentCell.CellText[0] != '=')
                 {
                     currentCell.CellValue = currentCell.CellText;
-                    this.OnPropertyChanged(sender, "CellChanged");
+                    this.OnPropertyChanged(cell, "CellChanged");
                 }
                 
                 // Formula
                 else
                 {
-                    RemoveCellDependency(currentCell);
-
                     SpreadsheetEngine.ExpressionTree expressionTree = new SpreadsheetEngine.ExpressionTree(currentCell.CellText.Substring(1));
-                    //expressionTree.Evaluate();
                     string[] variableNames = expressionTree.GetVariableNames();
-
-                    
 
                     foreach (string variable in variableNames)
                     {
@@ -209,12 +213,6 @@ namespace CptS321
                         {
                             expressionTree.SetVariable(variable, 0.0);
                         }
-
-
-                        visitedCells.Add(variableCell);
-
-                        // Subscribe Dependent Cells as Listeners
-                        // variableCell.DependencyChanged += currentCell.OnDependencyChanged; 
                     }
 
                     AddCellDependency(currentCell, variableNames);
@@ -222,57 +220,27 @@ namespace CptS321
                     foreach (string variable in variableNames)
                     {
                         SpreadsheetCell variableCell = this.GetCell(variable);
-                        if (IsCircularReference(variableCell, currentCell))
+                        if (CheckCircularReference(variableCell, currentCell))
                         {
                             currentCell.CellValue = "!(circular reference)";
                             this.OnPropertyChanged(currentCell, "CellChanged");
                             return;
                         }
                     }
-                    
-
-                    //if (CheckCircularDependency(currentCell) && !circular)
-                    //{
-                    //    this.circular = true;
-                    //    return;
-                    //}
-
-                    SubscribeDependencies(currentCell, variableNames);
-
-                    if (circular)
-                    {
-                        circular = false;
-                        if (this.dependentCells.ContainsKey(currentCell))
-                        {
-                            //UpdateCellDependency(currentCell);
-                        }
-                    }
-                    //SubscribeDependencies(currentCell, variableNames);
 
                     // Evaluate the Formula and Update the Value
                     currentCell.CellValue = expressionTree.Evaluate().ToString();
-                    this.OnPropertyChanged(sender, "CellChanged");
-
-                    // Check for Circular References?
-                    //if (CheckCircularReference(currentCell))
-                    //{
-                     //   return;
-                    //}                  
-                   
+                    this.OnPropertyChanged(cell, "CellChanged");                   
                 }
 
                 if (dependentCells.ContainsKey(currentCell))
                 {
                     foreach (SpreadsheetCell dependentCell in dependentCells[currentCell])
                     {
-                        EvaluateSpreadsheetCell(dependentCell, new PropertyChangedEventArgs("CellText"));
+                        EvaluateSpreadsheetCell(dependentCell);
                     }
                 }
-
-                //visitedCells.Clear();
-            }
-
-            
+            }           
         }
 
         /// <summary>
@@ -293,7 +261,12 @@ namespace CptS321
             }
         }
 
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="cell"></param>
+        /// <returns></returns>
         private bool CheckValidReference(SpreadsheetCell sender, SpreadsheetCell cell)
         {
             if (cell == null)
@@ -305,6 +278,12 @@ namespace CptS321
             return true;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="cell"></param>
+        /// <returns></returns>
         private bool CheckSelfReference(SpreadsheetCell sender, SpreadsheetCell cell)
         {
             if (cell == sender)
@@ -316,42 +295,13 @@ namespace CptS321
             return false;
         }
 
-        private bool CheckCircularReference(SpreadsheetCell cell)
-        {
-            if (this.visitedCells.Add(cell) == false)
-            {
-                cell.CellValue = "!(circular reference)";
-                //this.OnPropertyChanged(cell, "CellChanged");
-                return true;
-            }
-            return false;
-        }
-
-        private bool CheckCircularDependency(SpreadsheetCell cell)
-        {
-            foreach (HashSet<SpreadsheetCell> spreadsheetCells in this.dependentCells.Values)
-            {
-                if (spreadsheetCells.Contains(cell) && this.dependentCells.ContainsKey(cell))
-                {
-                    cell.CellValue = "!(circular reference)";
-                    this.OnPropertyChanged(cell, "CellChanged");
-                    return true;
-                }
-            }
-
-            return false;
-
-            //if (this.dependentCells.ContainsKey(cell) && this.dependentCells.Values.Contains(cell))
-            //{
-            //    cell.CellValue = "!(circular reference)";
-            //    this.OnPropertyChanged(cell, "CellChanged");
-            //    return true;
-            //}
-            //return false;
-
-        }
-
-        public bool IsCircularReference(SpreadsheetCell variableCell, SpreadsheetCell currentCell)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="variableCell"></param>
+        /// <param name="currentCell"></param>
+        /// <returns></returns>
+        public bool CheckCircularReference(SpreadsheetCell variableCell, SpreadsheetCell currentCell)
         {
             //self reference is also circular so if the variable name is the current cell, return true, we have a circular reference
             if (variableCell == currentCell)
@@ -369,7 +319,7 @@ namespace CptS321
             foreach (SpreadsheetCell dependentCell in dependentCells[currentCell])
             {
                 //call this IsCircularReference function on each cell in the dictionary to check THEIR references as well. 
-                if (IsCircularReference(variableCell, dependentCell))
+                if (CheckCircularReference(variableCell, dependentCell))
                 {
                     //If there is a circular reference later, we still have one now. Return true.
                     return true;
@@ -387,17 +337,6 @@ namespace CptS321
         /// <param name="e">Details of Change</param>
         private void UpdateSpreadsheetCell(object sender, PropertyChangedEventArgs e)
         {
-            // Only Update if Cell Property was Changed
-            //if (e.PropertyName == "CellText" || e.PropertyName == "CellValue")
-            {
-                // Cast Sender as a Spreadsheet Cell to Change
-                //SpreadsheetCell cellChanged = sender as SpreadsheetCell;
-
-                //this.UpdateSpreadsheetCell(cellChanged);
-                //this.OnPropertyChanged("Text");
-                
-                
-            }
             if (e.PropertyName == "BGColor")
             {
                 SpreadsheetCell cellChanged = sender as SpreadsheetCell;
@@ -492,8 +431,8 @@ namespace CptS321
                         userExpTree.SetVariable(variable, value);
                     }
 
-                    this.visitedCells.Add(variableCell);
-                    this.circularVariables.Add(variable);
+                    //this.visitedCells.Add(variableCell);
+                    //this.circularVariables.Add(variable);
 
 
                     // Register current cell changed as listener of each variable cell it references
@@ -506,16 +445,16 @@ namespace CptS321
                 // Update the cell value to the result of the expression tree   
                 cellChanged.CellValue = userExpTree.Evaluate().ToString();     
 
-                if (CircularReferences(cellChanged))
-                {
-                    cellChanged.CellValue = "!(circular reference)";
-                    this.CellPropertyChanged(cellChanged, new PropertyChangedEventArgs("CellChanged"));
-                }          
+                //if (CircularReferences(cellChanged))
+                //{
+                //    cellChanged.CellValue = "!(circular reference)";
+                //    this.CellPropertyChanged(cellChanged, new PropertyChangedEventArgs("CellChanged"));
+                //}          
             }
 
             // Notify Listeners that the cell was changed
             this.CellPropertyChanged(cellChanged, new PropertyChangedEventArgs("CellChanged"));
-            this.visitedCells.Clear();
+            //this.visitedCells.Clear();
         }
 
         /// <summary>
@@ -810,14 +749,14 @@ namespace CptS321
         }
 
 
-        public bool CircularReferences(SpreadsheetCell cell)
-        {
-            if (this.visitedCells.Add(cell) == false)
-            {
-                return true;
-            }
-            return false;
-        }
+        //public bool CircularReferences(SpreadsheetCell cell)
+        //{
+        //    if (this.visitedCells.Add(cell) == false)
+        //    {
+        //        return true;
+        //    }
+        //    return false;
+        //}
 
 
         public bool Circular2(string cellName, SpreadsheetCell variableCell)
